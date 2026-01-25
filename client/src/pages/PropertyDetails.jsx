@@ -21,23 +21,40 @@ import {
   Verified,
   ArrowLeft,
   CheckCircle,
-  X
+  X,
+  Star
 } from 'lucide-react';
 import axios from 'axios';
 import { PageLoader } from '../components/Loader';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 const PropertyDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [averageRating, setAverageRating] = useState(null);
+  const [totalReviews, setTotalReviews] = useState(0);
+  const [userRating, setUserRating] = useState(0);
+  const [userComment, setUserComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     fetchProperty();
   }, [id]);
+
+  useEffect(() => {
+    if (property?._id) {
+      fetchReviews();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [property?._id]);
 
   const fetchProperty = async () => {
     try {
@@ -54,23 +71,101 @@ const PropertyDetails = () => {
     }
   };
 
+  const fetchReviews = async () => {
+    try {
+      setReviewsLoading(true);
+      const response = await axios.get(`/api/reviews/property/${id}`);
+      const {
+        reviews: fetchedReviews = [],
+        averageRating: avg,
+        totalReviews: total,
+      } = response.data || {};
+
+      setReviews(fetchedReviews);
+      setAverageRating(typeof avg === 'number' ? avg : null);
+      setTotalReviews(total || 0);
+
+      if (user && fetchedReviews.length) {
+        const mine = fetchedReviews.find(
+          (r) => r.user?._id === user.id || r.user === user.id
+        );
+        if (mine) {
+          setUserRating(mine.rating || 0);
+          setUserComment(mine.comment || '');
+        } else {
+          setUserRating(0);
+          setUserComment('');
+        }
+      } else {
+        setUserRating(0);
+        setUserComment('');
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const handleMessageOwner = async () => {
+    if (!property?.owner) return;
+
+    // Prevent owners from messaging themselves on their own listing
+    if (user && (user.id === property.owner._id || user.id === property.owner.id)) {
+      toast.error('You cannot message your own listing');
+      return;
+    }
+
+    if (!isAuthenticated) {
+      toast.error('Please log in to send a message');
+      navigate(`/auth?redirect=${encodeURIComponent(`/property/${id}`)}`);
+      return;
+    }
+
+    try {
+      const response = await axios.post('/api/messages/start', {
+        propertyId: property._id,
+      });
+      const conversationId = response.data.conversation?._id;
+      if (conversationId) {
+        navigate(`/messages?conversationId=${conversationId}`);
+      } else {
+        toast.error('Could not open conversation');
+      }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to start conversation';
+      toast.error(message);
+    }
+  };
+
   const handleContact = (type) => {
     if (!property?.owner) return;
 
     const { owner } = property;
-    
+
+    const trackContact = (eventType) => {
+      axios
+        .post(`/api/houses/${property._id}/contact-event`, { type: eventType })
+        .catch(() => {
+          // Analytics errors should not affect user experience
+        });
+    };
+
     switch (type) {
       case 'phone':
         window.open(`tel:${owner.phone}`, '_self');
+        trackContact('phone');
         break;
       case 'email':
         const subject = `Inquiry about ${property.title}`;
         const body = `Hi ${owner.name},\n\nI'm interested in your property "${property.title}" listed on RentEase.\n\nProperty Details:\n- Location: ${property.location.address}, ${property.location.city}\n- Rent: ₹${property.rent}/month\n- Type: ${property.bhk} ${property.propertyType}\n\nCould you please provide more information?\n\nThank you!`;
         window.open(`mailto:${owner.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
+        trackContact('email');
         break;
       case 'whatsapp':
         const message = `Hi ${owner.name}, I'm interested in your property "${property.title}" listed on RentEase. Could you please provide more details?`;
         window.open(`https://wa.me/91${owner.phone}?text=${encodeURIComponent(message)}`, '_blank');
+        trackContact('whatsapp');
         break;
     }
     setShowContactModal(false);
@@ -109,6 +204,59 @@ const PropertyDetails = () => {
       currency: 'INR',
       maximumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const isOwnerViewing =
+    !!(
+      property &&
+      property.owner &&
+      user &&
+      (user.id === property.owner._id || user.id === property.owner.id)
+    );
+
+  const canReview =
+    !!(property && property.owner && user && isAuthenticated && !isOwnerViewing);
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+
+    if (!isAuthenticated) {
+      toast.error('Please log in to leave a review');
+      navigate(`/auth?redirect=${encodeURIComponent(`/property/${id}`)}`);
+      return;
+    }
+
+    if (!property) return;
+
+    if (isOwnerViewing) {
+      toast.error('Owners cannot review their own property');
+      return;
+    }
+
+    if (!userRating || userRating < 1 || userRating > 5) {
+      toast.error('Please select a rating between 1 and 5');
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+      const response = await axios.post(`/api/reviews/property/${id}`, {
+        rating: userRating,
+        comment: userComment,
+      });
+
+      const { averageRating: avg, totalReviews: total } = response.data || {};
+      setAverageRating(typeof avg === 'number' ? avg : null);
+      setTotalReviews(total || 0);
+
+      await fetchReviews();
+      toast.success('Review saved');
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to save review';
+      toast.error(message);
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   if (loading) {
@@ -190,15 +338,35 @@ const PropertyDetails = () => {
                     <MapPin className="h-5 w-5 mr-2" />
                     <span>{property.location.address}, {property.location.city}, {property.location.state}</span>
                   </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <div className="flex items-center space-x-1">
-                      <Eye className="h-4 w-4" />
-                      <span>{property.views} views</span>
+                  <div className="flex flex-col space-y-1 text-sm text-gray-500">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-1">
+                        <Eye className="h-4 w-4" />
+                        <span>{property.views} views</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="h-4 w-4" />
+                        <span>Listed {new Date(property.createdAt).toLocaleDateString()}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>Listed {new Date(property.createdAt).toLocaleDateString()}</span>
-                    </div>
+                    {averageRating !== null && (
+                      <div className="flex items-center space-x-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`h-4 w-4 ${
+                              averageRating >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                        <span className="ml-1 text-sm font-medium text-gray-900">
+                          {averageRating.toFixed(1)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          ({totalReviews} review{totalReviews === 1 ? '' : 's'})
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -266,7 +434,7 @@ const PropertyDetails = () => {
               )}
 
               {/* Preferences */}
-              <div>
+              <div className="mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">Preferences</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -280,6 +448,141 @@ const PropertyDetails = () => {
                     </span>
                   </div>
                 </div>
+              </div>
+
+              {/* Reviews */}
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">Reviews</h3>
+                {reviewsLoading ? (
+                  <div className="text-sm text-gray-500">Loading reviews...</div>
+                ) : (
+                  <>
+                    {totalReviews === 0 ? (
+                      <div className="text-sm text-gray-500 mb-3">
+                        No reviews yet. Be the first to review this property.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center space-x-2 mb-3">
+                          <div className="flex items-center">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`h-4 w-4 ${
+                                  averageRating >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-sm font-medium text-gray-900">
+                            {averageRating?.toFixed(1)} / 5
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            ({totalReviews} review{totalReviews === 1 ? '' : 's'})
+                          </span>
+                        </div>
+                        <div className="space-y-3 mb-4">
+                          {reviews.map((review) => (
+                            <div
+                              key={review._id}
+                              className="border border-gray-100 rounded-lg p-3 bg-gray-50"
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center space-x-2">
+                                  <div className="h-8 w-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold">
+                                    {review.user?.name?.charAt(0).toUpperCase() || 'U'}
+                                  </div>
+                                  <div>
+                                    <div className="text-sm font-semibold text-gray-900">
+                                      {review.user?.name || 'User'}
+                                    </div>
+                                    <div className="text-[11px] text-gray-500">
+                                      {new Date(review.createdAt).toLocaleDateString()}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star
+                                      key={star}
+                                      className={`h-3.5 w-3.5 ${
+                                        review.rating >= star
+                                          ? 'text-yellow-400 fill-yellow-400'
+                                          : 'text-gray-300'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                              {review.comment && (
+                                <p className="text-sm text-gray-700 mt-1">{review.comment}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+
+                {canReview && (
+                  <form
+                    onSubmit={handleSubmitReview}
+                    className="mt-4 border-t border-gray-200 pt-4 space-y-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 mb-1">
+                        Rate this property
+                      </p>
+                      <div className="flex items-center space-x-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            className="focus:outline-none"
+                            onClick={() => setUserRating(star)}
+                          >
+                            <Star
+                              className={`h-5 w-5 ${
+                                userRating >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <textarea
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                        rows={3}
+                        placeholder="Share your experience about this property (optional)"
+                        value={userComment}
+                        onChange={(e) => setUserComment(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={submittingReview}
+                        className="btn-primary text-sm px-4 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {submittingReview ? 'Saving...' : 'Submit review'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {!canReview && !isAuthenticated && (
+                  <p className="mt-3 text-xs text-gray-500">
+                    Please log in to leave a review.
+                  </p>
+                )}
+
+                {isOwnerViewing && (
+                  <p className="mt-3 text-xs text-gray-500">
+                    Owners cannot review their own property.
+                  </p>
+                )}
               </div>
             </motion.div>
 
@@ -346,8 +649,15 @@ const PropertyDetails = () => {
               {/* Contact Buttons */}
               <div className="space-y-3">
                 <button
-                  onClick={() => handleContact('whatsapp')}
+                  onClick={handleMessageOwner}
                   className="w-full btn-primary flex items-center justify-center space-x-2"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                  <span>Message in app</span>
+                </button>
+                <button
+                  onClick={() => handleContact('whatsapp')}
+                  className="w-full btn-outline flex items-center justify-center space-x-2"
                 >
                   <MessageCircle className="h-5 w-5" />
                   <span>WhatsApp</span>

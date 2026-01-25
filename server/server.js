@@ -8,6 +8,8 @@ const authRoutes = require('./routes/auth');
 const houseRoutes = require('./routes/houses');
 const uploadRoutes = require('./routes/upload');
 const favoritesRoutes = require('./routes/favorites');
+const messagesRoutes = require('./routes/messages');
+const reviewsRoutes = require('./routes/reviews');
 
 const app = express();
 
@@ -21,6 +23,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/houses', houseRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/favorites', favoritesRoutes);
+app.use('/api/messages', messagesRoutes);
+app.use('/api/reviews', reviewsRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

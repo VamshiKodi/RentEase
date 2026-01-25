@@ -108,6 +108,33 @@ const houseSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  favoriteCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  contactStats: {
+    total: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    whatsapp: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    phone: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    email: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
+  },
   isActive: {
     type: Boolean,
     default: true

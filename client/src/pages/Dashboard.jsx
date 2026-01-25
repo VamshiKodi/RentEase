@@ -22,7 +22,7 @@ import { CardLoader } from '../components/Loader';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -32,38 +32,10 @@ const Dashboard = () => {
     rentedProperties: 0
   });
 
-  // Debug: Log authentication state
-  console.log('Dashboard - Auth State:', { user, isAuthenticated, authLoading });
-
-  // Show loading while authentication is being checked
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-slate-600 font-medium">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if not authenticated
-  if (!isAuthenticated || !user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">Authentication Required</h2>
-          <p className="text-slate-600 mb-6">Please log in to access your dashboard.</p>
-          <Link to="/auth" className="btn-primary">
-            Go to Login
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
-    if (user?.userType === 'owner') {
+    if (!user) return;
+
+    if (user.userType === 'owner') {
       fetchOwnerProperties();
     } else {
       fetchTenantData();

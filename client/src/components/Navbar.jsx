@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home, 
@@ -11,15 +11,18 @@ import {
   LayoutDashboard,
   Moon,
   Sun,
-  Heart
+  Heart,
+  MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -36,6 +39,32 @@ const Navbar = () => {
   };
 
   const isActive = (path) => location.pathname === path;
+  const hasUnreadMessages = unreadMessages > 0 && location.pathname !== '/messages';
+
+  useEffect(() => {
+    let intervalId;
+
+    const fetchUnread = async () => {
+      if (!isAuthenticated) {
+        setUnreadMessages(0);
+        return;
+      }
+
+      try {
+        const res = await axios.get('/api/messages/unread-count');
+        setUnreadMessages(res.data.unreadCount || 0);
+      } catch (error) {
+        // Silently ignore notification errors
+      }
+    };
+
+    fetchUnread();
+    intervalId = setInterval(fetchUnread, 30000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isAuthenticated]);
 
   const navLinks = [
     { path: '/', label: 'Home', icon: Home },
@@ -106,13 +135,39 @@ const Navbar = () => {
                           to="/dashboard"
                           className="flex items-center space-x-3 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-luxury-50 hover:text-primary-700 transition-all duration-200 rounded-xl mx-2"
                           onClick={() => {
-                            console.log('Dashboard clicked');
                             setShowDropdown(false);
                           }}
                         >
                           <LayoutDashboard className="h-5 w-5" />
                           <span>Dashboard</span>
                         </Link>
+                        <Link
+                          to="/messages"
+                          className="flex items-center space-x-3 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-luxury-50 hover:text-primary-700 transition-all duration-200 rounded-xl mx-2"
+                          onClick={() => {
+                            setShowDropdown(false);
+                          }}
+                        >
+                          <div className="relative">
+                            <MessageCircle className="h-5 w-5" />
+                            {hasUnreadMessages && (
+                              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 border border-white" />
+                            )}
+                          </div>
+                          <span>Messages</span>
+                        </Link>
+                        {user?.userType === 'owner' && (
+                          <Link
+                            to="/owner/analytics"
+                            className="flex items-center space-x-3 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-luxury-50 hover:text-primary-700 transition-all duration-200 rounded-xl mx-2"
+                            onClick={() => {
+                              setShowDropdown(false);
+                            }}
+                          >
+                            <LayoutDashboard className="h-5 w-5" />
+                            <span>Analytics</span>
+                          </Link>
+                        )}
                         <button
                           onClick={handleLogout}
                           className="flex items-center space-x-3 w-full px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-all duration-200 rounded-xl mx-2"
@@ -178,6 +233,29 @@ const Navbar = () => {
                     <LayoutDashboard className="h-5 w-5" />
                     <span>Dashboard</span>
                   </Link>
+                  <Link
+                    to="/messages"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+                  >
+                    <div className="relative">
+                      <MessageCircle className="h-5 w-5" />
+                      {hasUnreadMessages && (
+                        <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 border border-white" />
+                      )}
+                    </div>
+                    <span>Messages</span>
+                  </Link>
+                  {user?.userType === 'owner' && (
+                    <Link
+                      to="/owner/analytics"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50"
+                    >
+                      <LayoutDashboard className="h-5 w-5" />
+                      <span>Analytics</span>
+                    </Link>
+                  )}
                   
                   {user?.userType === 'owner' && (
                     <Link

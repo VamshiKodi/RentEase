@@ -151,6 +151,39 @@ router.get('/nearby', [
   }
 });
 
+// @route   POST /api/houses/:id/contact-event
+// @desc    Track a contact action (phone, email, whatsapp) for analytics
+// @access  Public
+router.post('/:id/contact-event', async (req, res) => {
+  try {
+    const { type } = req.body;
+
+    const house = await House.findById(req.params.id).select('_id');
+    if (!house) {
+      return res.status(404).json({ message: 'House not found' });
+    }
+
+    const incUpdate = {
+      'contactStats.total': 1
+    };
+
+    if (type === 'whatsapp') {
+      incUpdate['contactStats.whatsapp'] = 1;
+    } else if (type === 'phone') {
+      incUpdate['contactStats.phone'] = 1;
+    } else if (type === 'email') {
+      incUpdate['contactStats.email'] = 1;
+    }
+
+    await House.updateOne({ _id: house._id }, { $inc: incUpdate });
+
+    return res.json({ message: 'Contact event tracked' });
+  } catch (error) {
+    console.error('Track contact event error:', error);
+    return res.status(500).json({ message: 'Server error while tracking contact event' });
+  }
+});
+
 // @route   GET /api/houses/:id
 // @desc    Get single house by ID
 // @access  Public
@@ -313,7 +346,8 @@ router.get('/owner/my-listings', [auth, ownerOnly], async (req, res) => {
     const houses = await House.find({ owner: req.user._id })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .populate('owner', 'name email phone isVerified');
 
     const total = await House.countDocuments({ owner: req.user._id });
 
@@ -330,6 +364,43 @@ router.get('/owner/my-listings', [auth, ownerOnly], async (req, res) => {
   } catch (error) {
     console.error('Get owner listings error:', error);
     res.status(500).json({ message: 'Server error while fetching your listings' });
+  }
+});
+
+// @route   GET /api/houses/owner/analytics
+// @desc    Get analytics summary and per-house stats for current owner
+// @access  Private (Owner only)
+router.get('/owner/analytics', [auth, ownerOnly], async (req, res) => {
+  try {
+    const houses = await House.find({ owner: req.user._id }).sort({ createdAt: -1 });
+
+    const summary = houses.reduce(
+      (acc, house) => {
+        acc.totalViews += house.views || 0;
+        acc.totalFavorites += house.favoriteCount || 0;
+
+        const stats = house.contactStats || {};
+        acc.totalContacts += stats.total || 0;
+        acc.whatsapp += stats.whatsapp || 0;
+        acc.phone += stats.phone || 0;
+        acc.email += stats.email || 0;
+
+        return acc;
+      },
+      {
+        totalViews: 0,
+        totalFavorites: 0,
+        totalContacts: 0,
+        whatsapp: 0,
+        phone: 0,
+        email: 0,
+      }
+    );
+
+    res.json({ summary, houses });
+  } catch (error) {
+    console.error('Get owner analytics error:', error);
+    res.status(500).json({ message: 'Server error while fetching analytics' });
   }
 });
 

@@ -66,12 +66,17 @@ router.post('/:houseId', auth, async (req, res) => {
       return res.status(404).json({ message: 'House not found' });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { $addToSet: { favorites: houseId } },
-      { new: true }
-    ).select('favorites');
+    // Only add to favorites and increment favoriteCount if not already present
+    const updateResult = await User.updateOne(
+      { _id: req.user._id, favorites: { $ne: houseId } },
+      { $addToSet: { favorites: houseId } }
+    );
 
+    if (updateResult.modifiedCount > 0) {
+      await House.findByIdAndUpdate(houseId, { $inc: { favoriteCount: 1 } });
+    }
+
+    const user = await User.findById(req.user._id).select('favorites');
     const favorites = (user.favorites || []).map((id) => id.toString());
 
     return res.json({ favorites });
@@ -91,11 +96,17 @@ router.delete('/:houseId', auth, async (req, res) => {
   try {
     const { houseId } = req.params;
 
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { $pull: { favorites: houseId } },
-      { new: true }
-    ).select('favorites');
+    // Only pull from favorites and decrement favoriteCount if it was present
+    const updateResult = await User.updateOne(
+      { _id: req.user._id, favorites: houseId },
+      { $pull: { favorites: houseId } }
+    );
+
+    if (updateResult.modifiedCount > 0) {
+      await House.findByIdAndUpdate(houseId, { $inc: { favoriteCount: -1 } });
+    }
+
+    const user = await User.findById(req.user._id).select('favorites');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });

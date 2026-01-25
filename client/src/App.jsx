@@ -24,6 +24,8 @@ import Guides from './pages/Guides';
 import FAQ from './pages/FAQ';
 import Privacy from './pages/Privacy';
 import Favorites from './pages/Favorites';
+import OwnerAnalytics from './pages/OwnerAnalytics';
+import Messages from './pages/Messages';
 
 function App() {
   return (
@@ -66,6 +68,22 @@ function App() {
                 element={
                   <ProtectedRoute requireOwner={true}>
                     <AddProperty />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/messages" 
+                element={
+                  <ProtectedRoute>
+                    <Messages />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/owner/analytics" 
+                element={
+                  <ProtectedRoute requireOwner={true}>
+                    <OwnerAnalytics />
                   </ProtectedRoute>
                 } 
               />
