@@ -10,6 +10,7 @@ const uploadRoutes = require('./routes/upload');
 const favoritesRoutes = require('./routes/favorites');
 const messagesRoutes = require('./routes/messages');
 const reviewsRoutes = require('./routes/reviews');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/reviews', reviewsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

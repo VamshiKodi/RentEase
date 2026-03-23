@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
   },
   userType: {
     type: String,
-    enum: ['owner', 'renter'],
+    enum: ['owner', 'renter', 'admin'],
     required: [true, 'User type is required']
   },
   isVerified: {

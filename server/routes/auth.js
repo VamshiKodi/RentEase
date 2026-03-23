@@ -2,7 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
-const { auth } = require('../middleware/auth');
+const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -77,6 +77,54 @@ router.post('/register', [
   }
 });
 
+// @route   POST /api/auth/admin/login
+// @desc    Login admin user (separate portal)
+// @access  Public
+router.post('/admin/login', [
+  body('email').isEmail().normalizeEmail().withMessage('Please enter a valid email'),
+  body('password').notEmpty().withMessage('Password is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email, userType: 'admin' });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid email or password' });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid email or password' });
+    }
+
+    const token = generateToken(user._id);
+
+    return res.json({
+      message: 'Admin login successful',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        userType: user.userType,
+        isVerified: user.isVerified,
+      }
+    });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    return res.status(500).json({ message: 'Server error during admin login' });
+  }
+});
+
 // @route   POST /api/auth/login
 // @desc    Login user
 // @access  Public
@@ -148,6 +196,75 @@ router.get('/me', auth, async (req, res) => {
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/auth/admin/me
+// @desc    Get current admin user
+// @access  Private (Admin only)
+router.get('/admin/me', auth, adminOnly, async (req, res) => {
+  try {
+    return res.json({
+      user: {
+        id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        phone: req.user.phone,
+        userType: req.user.userType,
+        isVerified: req.user.isVerified,
+      }
+    });
+  } catch (error) {
+    console.error('Get admin user error:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/auth/admin/setup
+// @desc    Create the first admin user (protected by ADMIN_SETUP_SECRET)
+// @access  Public (Secret required)
+router.post('/admin/setup', [
+  body('secret').notEmpty().withMessage('Secret is required'),
+  body('name').trim().isLength({ min: 2, max: 50 }).withMessage('Name must be between 2-50 characters'),
+  body('email').isEmail().normalizeEmail().withMessage('Please enter a valid email'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('phone').matches(/^[0-9]{10}$/).withMessage('Please enter a valid 10-digit phone number'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
+    }
+
+    if (!process.env.ADMIN_SETUP_SECRET) {
+      return res.status(400).json({ message: 'Admin setup is not enabled on this server' });
+    }
+
+    const { secret, name, email, password, phone } = req.body;
+    if (secret !== process.env.ADMIN_SETUP_SECRET) {
+      return res.status(401).json({ message: 'Invalid setup secret' });
+    }
+
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ message: 'User already exists with this email' });
+    }
+
+    const admin = new User({
+      name,
+      email,
+      password,
+      phone,
+      userType: 'admin',
+      isVerified: true,
+    });
+
+    await admin.save();
+
+    return res.status(201).json({ message: 'Admin user created successfully' });
+  } catch (error) {
+    console.error('Admin setup error:', error);
+    return res.status(500).json({ message: 'Server error during admin setup' });
   }
 });
 

@@ -24,7 +24,7 @@ const Press = () => {
             </div>
             <div className="rounded-2xl bg-white/10 border border-white/20 px-4 py-3 text-xs sm:text-sm text-white/90 flex items-center">
               <Mail className="h-4 w-4 mr-2" />
-              <span className="font-mono">press@rentease.com</span>
+              <span className="font-mono">press@homelink.com</span>
             </div>
           </div>
         </div>
@@ -36,8 +36,8 @@ const Press = () => {
               <span className="ml-2 text-xs font-semibold tracking-wide uppercase">About the brand</span>
             </div>
             <p className="text-sm sm:text-base text-slate-700 leading-relaxed mb-3">
-              RentEase is a digital rental marketplace that connects tenants and property owners
-              directly. Our platform combines verified listings, rich property details, and
+              RentEase is a digital rental marketplace that connects owners & tenants directly.
+              Our platform combines verified listings, rich property details, and
               location-aware search to make finding a home as seamless as booking a cab.
             </p>
             <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
@@ -52,7 +52,7 @@ const Press = () => {
                 Media contact
               </p>
               <p className="mb-1">
-                Email: <span className="font-mono">press@rentease.com</span>
+                Email: <span className="font-mono">press@homelink.com</span>
               </p>
               <p>We typically respond within 1-2 business days.</p>
             </div>

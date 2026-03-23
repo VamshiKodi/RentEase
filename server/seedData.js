@@ -51,6 +51,14 @@ const mockUsers = [
     phone: '9876543214',
     userType: 'renter',
     isVerified: true
+  },
+  {
+    name: 'Admin User',
+    email: 'admin@example.com',
+    password: 'admin123',
+    phone: '9876543220',
+    userType: 'admin',
+    isVerified: true
   }
 ];
 
@@ -343,7 +351,9 @@ async function seedDatabase() {
       
       const house = new House({
         ...houseData,
-        owner: owner._id
+        owner: owner._id,
+        approvalStatus: 'approved',
+        approvedAt: new Date(),
       });
       const savedHouse = await house.save();
       createdHouses.push(savedHouse);
@@ -360,6 +370,8 @@ async function seedDatabase() {
     console.log('\n🏠 TENANTS/RENTERS:');
     console.log('   📧 sneha.renter@example.com | 🔑 password123 | ✅ Verified');
     console.log('   📧 vikram.renter@example.com| 🔑 password123 | ✅ Verified');
+    console.log('\n🛡️  ADMIN:');
+    console.log('   📧 admin@example.com        | 🔑 admin123    | ✅ Verified');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('\n🌐 Visit http://localhost:3000 to test the application!');
     

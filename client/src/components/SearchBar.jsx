@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Filter, X } from 'lucide-react';
+import { Search, MapPin, Filter, X, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const SearchBar = ({ onSearch, onFilterChange, filters = {} }) => {
   const [searchTerm, setSearchTerm] = useState(filters.search || '');
@@ -19,200 +20,164 @@ const SearchBar = ({ onSearch, onFilterChange, filters = {} }) => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (onSearch) {
-      onSearch(searchTerm);
-    }
+    if (onSearch) onSearch(searchTerm);
   };
 
   const handleFilterChange = (key, value) => {
     const newFilters = { ...localFilters, [key]: value };
     setLocalFilters(newFilters);
-    if (onFilterChange) {
-      onFilterChange(newFilters);
-    }
+    if (onFilterChange) onFilterChange(newFilters);
   };
 
   const clearFilters = () => {
-    const emptyFilters = {
-      city: '',
-      minRent: '',
-      maxRent: '',
-      bhk: '',
-      furnishing: '',
-      propertyType: '',
-    };
+    const emptyFilters = { city: '', minRent: '', maxRent: '', bhk: '', furnishing: '', propertyType: '' };
     setLocalFilters(emptyFilters);
-    if (onFilterChange) {
-      onFilterChange(emptyFilters);
-    }
+    if (onFilterChange) onFilterChange(emptyFilters);
   };
 
   const hasActiveFilters = Object.values(localFilters).some(value => value !== '');
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+    <div className="relative">
       {/* Main Search Bar */}
-      <form onSubmit={handleSearch} className="flex gap-4 mb-4">
-        <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
+      <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+        <div className="flex-1 relative group">
+          <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-[#a89b8c] group-focus-within:text-primary-500 transition-colors" />
           </div>
           <input
             type="text"
-            placeholder="Search by location, property name..."
+            placeholder="Search by neighborhood or complex name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="w-full bg-white border border-[#e8dfd3] rounded-2xl py-4 pl-14 pr-6 text-sm font-medium focus:ring-2 focus:ring-primary-300 transition-all text-[#3d3226] placeholder:text-[#a89b8c]"
           />
         </div>
-        
-        <button
-          type="button"
-          onClick={() => setShowFilters(!showFilters)}
-          className={`btn-outline flex items-center space-x-2 px-4 py-3 ${
-            hasActiveFilters ? 'bg-primary-50 border-primary-500' : ''
-          }`}
-        >
-          <Filter className="h-4 w-4" />
-          <span>Filters</span>
-          {hasActiveFilters && (
-            <span className="bg-primary-600 text-white text-xs rounded-full px-2 py-0.5">
-              {Object.values(localFilters).filter(v => v !== '').length}
-            </span>
-          )}
-        </button>
-        
-        <button type="submit" className="btn-primary px-6 py-3">
-          Search
-        </button>
+
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center space-x-3 px-6 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all border ${showFilters || hasActiveFilters
+                ? 'bg-primary-50 border-primary-200 text-primary-600'
+                : 'bg-white border-[#e8dfd3] text-[#5c4d3c] hover:text-[#3d3226]'
+              }`}
+          >
+            <Filter className="h-4 w-4" />
+            <span>Refine</span>
+            <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${showFilters ? 'rotate-180' : ''}`} />
+          </button>
+
+          <button type="submit" className="btn-primary !py-4 !px-8">
+            Search
+          </button>
+        </div>
       </form>
 
       {/* Filters Panel */}
-      {showFilters && (
-        <div className="border-t border-gray-200 pt-4 animate-slide-up">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
-            <div className="flex items-center space-x-2">
-              {hasActiveFilters && (
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute top-full left-0 right-0 mt-4 z-[100]"
+          >
+            <div className="bg-white rounded-2xl border border-[#e8dfd3] shadow-lg !p-8">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-bold text-[#3d3226] tracking-tight">Advanced Filters</h3>
+                {hasActiveFilters && (
+                  <button onClick={clearFilters} className="text-xs font-bold text-primary-500 hover:text-primary-600 uppercase tracking-widest transition-colors">
+                    Reset All
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                  <label className="block text-[10px] font-bold text-[#a89b8c] uppercase tracking-widest mb-3">Location City</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#a89b8c]" />
+                    <input
+                      type="text"
+                      placeholder="City name..."
+                      value={localFilters.city}
+                      onChange={(e) => handleFilterChange('city', e.target.value)}
+                      className="w-full bg-white border border-[#e8dfd3] rounded-xl py-3 pl-11 pr-4 text-sm font-medium focus:ring-1 focus:ring-primary-300 transition-all text-[#3d3226]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-[#a89b8c] uppercase tracking-widest mb-3">Budget Range (₹)</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={localFilters.minRent}
+                      onChange={(e) => handleFilterChange('minRent', e.target.value)}
+                      className="w-full bg-white border border-[#e8dfd3] rounded-xl py-3 px-4 text-sm font-medium focus:ring-1 focus:ring-primary-300 transition-all text-[#3d3226]"
+                    />
+                    <span className="text-[#a89b8c]">/</span>
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={localFilters.maxRent}
+                      onChange={(e) => handleFilterChange('maxRent', e.target.value)}
+                      className="w-full bg-white border border-[#e8dfd3] rounded-xl py-3 px-4 text-sm font-medium focus:ring-1 focus:ring-primary-300 transition-all text-[#3d3226]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-[#a89b8c] uppercase tracking-widest mb-3">BHK Configuration</label>
+                  <select
+                    value={localFilters.bhk}
+                    onChange={(e) => handleFilterChange('bhk', e.target.value)}
+                    className="w-full bg-white border border-[#e8dfd3] rounded-xl py-3 px-4 text-sm font-medium focus:ring-1 focus:ring-primary-300 transition-all text-[#3d3226] cursor-pointer"
+                  >
+                    <option value="">Any Layout</option>
+                    {bhkOptions.map((bhk) => <option key={bhk} value={bhk}>{bhk}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-[#a89b8c] uppercase tracking-widest mb-3">Furnishing Status</label>
+                  <select
+                    value={localFilters.furnishing}
+                    onChange={(e) => handleFilterChange('furnishing', e.target.value)}
+                    className="w-full bg-white border border-[#e8dfd3] rounded-xl py-3 px-4 text-sm font-medium focus:ring-1 focus:ring-primary-300 transition-all text-[#3d3226] cursor-pointer"
+                  >
+                    <option value="">Any Status</option>
+                    {furnishingOptions.map((f) => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-[#a89b8c] uppercase tracking-widest mb-3">Property Type</label>
+                  <select
+                    value={localFilters.propertyType}
+                    onChange={(e) => handleFilterChange('propertyType', e.target.value)}
+                    className="w-full bg-white border border-[#e8dfd3] rounded-xl py-3 px-4 text-sm font-medium focus:ring-1 focus:ring-primary-300 transition-all text-[#3d3226] cursor-pointer"
+                  >
+                    <option value="">Any Type</option>
+                    {propertyTypeOptions.map((type) => <option key={type} value={type}>{type}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-10 pt-8 border-t border-[#e8dfd3] flex justify-end">
                 <button
-                  onClick={clearFilters}
-                  className="text-sm text-gray-500 hover:text-gray-700 flex items-center space-x-1"
+                  onClick={() => setShowFilters(false)}
+                  className="btn-secondary !px-8 !py-3"
                 >
-                  <X className="h-4 w-4" />
-                  <span>Clear all</span>
+                  Apply Filters
                 </button>
-              )}
-              <button
-                onClick={() => setShowFilters(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* City Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <MapPin className="h-4 w-4 inline mr-1" />
-                City
-              </label>
-              <input
-                type="text"
-                placeholder="Enter city name"
-                value={localFilters.city}
-                onChange={(e) => handleFilterChange('city', e.target.value)}
-                className="input-field"
-              />
-            </div>
-
-            {/* Rent Range */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Min Rent (₹)
-              </label>
-              <input
-                type="number"
-                placeholder="e.g., 10000"
-                value={localFilters.minRent}
-                onChange={(e) => handleFilterChange('minRent', e.target.value)}
-                className="input-field"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Max Rent (₹)
-              </label>
-              <input
-                type="number"
-                placeholder="e.g., 50000"
-                value={localFilters.maxRent}
-                onChange={(e) => handleFilterChange('maxRent', e.target.value)}
-                className="input-field"
-              />
-            </div>
-
-            {/* BHK Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                BHK Type
-              </label>
-              <select
-                value={localFilters.bhk}
-                onChange={(e) => handleFilterChange('bhk', e.target.value)}
-                className="input-field"
-              >
-                <option value="">Any BHK</option>
-                {bhkOptions.map((bhk) => (
-                  <option key={bhk} value={bhk}>
-                    {bhk}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Furnishing Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Furnishing
-              </label>
-              <select
-                value={localFilters.furnishing}
-                onChange={(e) => handleFilterChange('furnishing', e.target.value)}
-                className="input-field"
-              >
-                <option value="">Any Furnishing</option>
-                {furnishingOptions.map((furnishing) => (
-                  <option key={furnishing} value={furnishing}>
-                    {furnishing}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Property Type Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Property Type
-              </label>
-              <select
-                value={localFilters.propertyType}
-                onChange={(e) => handleFilterChange('propertyType', e.target.value)}
-                className="input-field"
-              >
-                <option value="">Any Type</option>
-                {propertyTypeOptions.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -10,7 +10,7 @@ const FAQ = () => {
     {
       question: 'Do you charge any broker commission?',
       answer:
-        'No. RentEase is a broker-free platform. We connect owners and tenants directly and do not take any commission on rent.',
+        'No. RentEase is a broker-free platform connecting owners & tenants directly, and we do not take any commission on rent.',
     },
     {
       question: 'How does nearby homes using GPS work?',
@@ -36,7 +36,7 @@ const FAQ = () => {
             Frequently asked questions
           </h1>
           <p className="text-sm sm:text-base md:text-lg text-white/90 max-w-2xl leading-relaxed">
-            Quick answers to the most common questions from renters and owners using RentEase.
+            Quick answers to the most common questions from renters and owners using RentEase - Your Home, Simplified.
           </p>
         </div>
 

@@ -29,7 +29,7 @@ const Dashboard = () => {
     totalProperties: 0,
     totalViews: 0,
     availableProperties: 0,
-    rentedProperties: 0
+    pendingApproval: 0
   });
 
   useEffect(() => {
@@ -51,13 +51,13 @@ const Dashboard = () => {
       const totalProperties = response.data.houses.length;
       const totalViews = response.data.houses.reduce((sum, house) => sum + (house.views || 0), 0);
       const availableProperties = response.data.houses.filter(house => house.availability === 'Available').length;
-      const rentedProperties = response.data.houses.filter(house => house.availability === 'Rented').length;
+      const pendingApproval = response.data.houses.filter(house => house.approvalStatus === 'pending').length;
       
       setStats({
         totalProperties,
         totalViews,
         availableProperties,
-        rentedProperties
+        pendingApproval
       });
     } catch (error) {
       console.error('Error fetching properties:', error);
@@ -95,14 +95,14 @@ const Dashboard = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white/90 backdrop-blur-md rounded-2xl shadow-luxury p-6 border border-slate-200/50 hover:shadow-luxury-lg transition-all duration-300"
+      className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-6 border border-slate-200 dark:border-slate-800 transition-all duration-300"
     >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-600">{title}</p>
-          <p className="text-3xl font-display font-black text-slate-900 mt-2">{value}</p>
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{title}</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-2">{value}</p>
         </div>
-        <div className={`p-4 rounded-2xl bg-gradient-to-br from-primary-100 to-luxury-100 ${color} shadow-md`}>
+        <div className={`p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 ${color} shadow-sm`}>
           <Icon className="h-7 w-7" />
         </div>
       </div>
@@ -111,22 +111,22 @@ const Dashboard = () => {
 
   if (user?.userType === 'owner') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-display font-black bg-gradient-to-r from-slate-900 via-primary-700 to-luxury-700 bg-clip-text text-transparent">Owner Dashboard</h1>
-              <p className="text-slate-600 mt-2 text-lg font-medium">Manage your property listings</p>
-            </div>
-            <Link
-              to="/add-property"
-              className="btn-primary flex items-center space-x-2 mt-4 sm:mt-0"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Add Property</span>
-            </Link>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Owner Dashboard</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-2 text-lg font-medium">Manage your property listings</p>
           </div>
+          <Link
+            to="/add-property"
+            className="btn-primary flex items-center space-x-2 mt-4 sm:mt-0"
+          >
+            <Plus className="h-5 w-5" />
+            <span>Add Property</span>
+          </Link>
+        </div>
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -150,8 +150,8 @@ const Dashboard = () => {
             />
             <StatCard
               icon={Users}
-              title="Rented"
-              value={stats.rentedProperties}
+              title="Pending Approval"
+              value={stats.pendingApproval}
               color="text-purple-600"
             />
           </div>
@@ -204,13 +204,21 @@ const Dashboard = () => {
                       {/* Status Badge */}
                       <div className="absolute top-4 left-4">
                         <span className={`px-2 py-1 text-xs font-medium rounded-md ${
-                          property.availability === 'Available'
+                          property.approvalStatus === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : property.approvalStatus === 'rejected'
+                            ? 'bg-red-100 text-red-800'
+                            : property.availability === 'Available'
                             ? 'bg-green-100 text-green-800'
                             : property.availability === 'Rented'
                             ? 'bg-red-100 text-red-800'
                             : 'bg-yellow-100 text-yellow-800'
                         }`}>
-                          {property.availability}
+                          {property.approvalStatus === 'pending'
+                            ? 'Pending Approval'
+                            : property.approvalStatus === 'rejected'
+                            ? 'Rejected'
+                            : property.availability}
                         </span>
                       </div>
                     </motion.div>
@@ -219,21 +227,41 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="p-12 text-center">
-                <div className="bg-gray-100 rounded-full p-8 w-32 h-32 mx-auto mb-6 flex items-center justify-center">
-                  <Home className="h-16 w-16 text-gray-400" />
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-full p-8 w-32 h-32 mx-auto mb-6 flex items-center justify-center border border-slate-100 dark:border-slate-800">
+                  <Home className="h-16 w-16 text-slate-400 dark:text-slate-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                   No properties listed yet
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-sm mx-auto">
                   Start by adding your first property to attract potential tenants.
                 </p>
-                <Link to="/add-property" className="btn-primary">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Add Your First Property
-                </Link>
+                <div className="flex justify-center">
+                  <Link to="/add-property" className="btn-primary flex items-center space-x-2 shadow-primary-500/20">
+                    <Plus className="h-5 w-5" />
+                    <span>Add Your First Property</span>
+                  </Link>
+                </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (user?.userType === 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="max-w-4xl mx-auto px-6 py-16">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8">
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-3">Admin Dashboard</h1>
+            <p className="text-slate-600 dark:text-slate-400 mb-6">
+              Use moderation tools to review owner listings and approve them before they appear publicly.
+            </p>
+            <Link to="/admin/dashboard" className="btn-primary">
+              Go to Admin Dashboard
+            </Link>
           </div>
         </div>
       </div>

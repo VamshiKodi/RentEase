@@ -43,8 +43,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     const houses = await House.find({
-      _id: { $in: favoriteIds },
-      isActive: true,
+      _id: { $in: favoriteIds }
     });
 
     return res.json({ houses });

@@ -128,7 +128,7 @@ const AddProperty = () => {
           city: data.city,
           state: data.state,
           pincode: data.pincode,
-          ...(geoCoords && {
+          ...(geoCoords && typeof geoCoords.longitude === 'number' && typeof geoCoords.latitude === 'number' && {
             coordinates: {
               type: 'Point',
               coordinates: [geoCoords.longitude, geoCoords.latitude],
@@ -138,11 +138,20 @@ const AddProperty = () => {
       };
 
       const response = await axios.post('/api/houses', propertyData);
-      toast.success('Property listed successfully!');
+      toast.success('Property submitted for admin approval!');
       navigate(`/property/${response.data.house._id}`);
     } catch (error) {
       console.error('Error creating property:', error);
-      const message = error.response?.data?.message || 'Failed to create property';
+      const apiData = error.response?.data;
+      const validationErrors = Array.isArray(apiData?.errors) ? apiData.errors : null;
+
+      const message =
+        (validationErrors && validationErrors.length
+          ? validationErrors
+              .map((e) => `${e.path || e.param || 'field'}: ${e.msg || e.message || 'Invalid'}`)
+              .join('\n')
+          : apiData?.error || apiData?.message) || 'Failed to create property';
+
       toast.error(message);
     } finally {
       setLoading(false);
@@ -229,7 +238,7 @@ const AddProperty = () => {
           <div className="space-y-6">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                 Property Title *
               </label>
               <input
@@ -238,7 +247,7 @@ const AddProperty = () => {
                   required: 'Title is required',
                   minLength: { value: 5, message: 'Title must be at least 5 characters' }
                 })}
-                className="input-field"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                 placeholder="e.g., Spacious 2BHK Apartment in Bandra"
               />
               {errors.title && (
@@ -248,7 +257,7 @@ const AddProperty = () => {
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                 Description *
               </label>
               <textarea
@@ -257,7 +266,7 @@ const AddProperty = () => {
                   minLength: { value: 20, message: 'Description must be at least 20 characters' }
                 })}
                 rows={4}
-                className="input-field"
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                 placeholder="Describe your property, its features, nearby amenities..."
               />
               {errors.description && (
@@ -268,12 +277,12 @@ const AddProperty = () => {
             {/* Property Type & BHK */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                   Property Type *
                 </label>
                 <select
                   {...register('propertyType', { required: 'Property type is required' })}
-                  className="input-field"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                 >
                   <option value="">Select property type</option>
                   {propertyTypeOptions.map(type => (
@@ -286,12 +295,12 @@ const AddProperty = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                   BHK Type *
                 </label>
                 <select
                   {...register('bhk', { required: 'BHK type is required' })}
-                  className="input-field"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                 >
                   <option value="">Select BHK</option>
                   {bhkOptions.map(bhk => (
@@ -307,18 +316,18 @@ const AddProperty = () => {
             {/* Rent & Deposit */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                   Monthly Rent (₹) *
                 </label>
                 <div className="relative">
-                  <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
                     type="number"
                     {...register('rent', {
                       required: 'Rent is required',
                       min: { value: 1, message: 'Rent must be greater than 0' }
                     })}
-                    className="input-field pl-10"
+                    className="w-full px-4 py-3 pl-10 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                     placeholder="25000"
                   />
                 </div>
@@ -328,17 +337,17 @@ const AddProperty = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                   Security Deposit (₹)
                 </label>
                 <div className="relative">
-                  <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
                     type="number"
                     {...register('deposit', {
                       min: { value: 0, message: 'Deposit cannot be negative' }
                     })}
-                    className="input-field pl-10"
+                    className="w-full px-4 py-3 pl-10 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                     placeholder="50000"
                   />
                 </div>
@@ -351,18 +360,18 @@ const AddProperty = () => {
             {/* Area & Furnishing */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                   Area (sq ft) *
                 </label>
                 <div className="relative">
-                  <Square className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Square className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
                     type="number"
                     {...register('area', {
                       required: 'Area is required',
                       min: { value: 1, message: 'Area must be greater than 0' }
                     })}
-                    className="input-field pl-10"
+                    className="w-full px-4 py-3 pl-10 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                     placeholder="1200"
                   />
                 </div>
@@ -372,12 +381,12 @@ const AddProperty = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                   Furnishing *
                 </label>
                 <select
                   {...register('furnishing', { required: 'Furnishing status is required' })}
-                  className="input-field"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                 >
                   <option value="">Select furnishing</option>
                   {furnishingOptions.map(furnishing => (

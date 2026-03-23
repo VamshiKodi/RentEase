@@ -43,7 +43,7 @@ const Contact = () => {
                 <Mail className="h-4 w-4 text-primary-600 mr-2" />
                 <span className="font-semibold text-slate-900">Email</span>
               </div>
-              <p className="font-mono">support@rentease.com</p>
+              <p className="font-mono">support@homelink.com</p>
             </div>
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 text-sm text-slate-700">
               <div className="flex items-center mb-2">

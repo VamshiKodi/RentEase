@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination, Autoplay } from 'swiper/modules';
+import { Navigation, Pagination, Autoplay, EffectFade } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
+import 'swiper/css/effect-fade';
 import {
   MapPin,
   Bed,
@@ -22,7 +23,10 @@ import {
   ArrowLeft,
   CheckCircle,
   X,
-  Star
+  Star,
+  Info,
+  Shield,
+  Zap
 } from 'lucide-react';
 import axios from 'axios';
 import { PageLoader } from '../components/Loader';
@@ -44,16 +48,14 @@ const PropertyDetails = () => {
   const [userRating, setUserRating] = useState(0);
   const [userComment, setUserComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const reviewsSectionRef = useRef(null);
 
   useEffect(() => {
     fetchProperty();
   }, [id]);
 
   useEffect(() => {
-    if (property?._id) {
-      fetchReviews();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (property?._id) fetchReviews();
   }, [property?._id]);
 
   const fetchProperty = async () => {
@@ -61,7 +63,6 @@ const PropertyDetails = () => {
       const response = await axios.get(`/api/houses/${id}`);
       setProperty(response.data);
     } catch (error) {
-      console.error('Error fetching property:', error);
       if (error.response?.status === 404) {
         toast.error('Property not found');
         navigate('/browse');
@@ -75,30 +76,17 @@ const PropertyDetails = () => {
     try {
       setReviewsLoading(true);
       const response = await axios.get(`/api/reviews/property/${id}`);
-      const {
-        reviews: fetchedReviews = [],
-        averageRating: avg,
-        totalReviews: total,
-      } = response.data || {};
-
+      const { reviews: fetchedReviews = [], averageRating: avg, totalReviews: total } = response.data || {};
       setReviews(fetchedReviews);
       setAverageRating(typeof avg === 'number' ? avg : null);
       setTotalReviews(total || 0);
 
       if (user && fetchedReviews.length) {
-        const mine = fetchedReviews.find(
-          (r) => r.user?._id === user.id || r.user === user.id
-        );
+        const mine = fetchedReviews.find((r) => r.user?._id === user.id || r.user === user.id);
         if (mine) {
           setUserRating(mine.rating || 0);
           setUserComment(mine.comment || '');
-        } else {
-          setUserRating(0);
-          setUserComment('');
         }
-      } else {
-        setUserRating(0);
-        setUserComment('');
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
@@ -109,47 +97,28 @@ const PropertyDetails = () => {
 
   const handleMessageOwner = async () => {
     if (!property?.owner) return;
-
-    // Prevent owners from messaging themselves on their own listing
     if (user && (user.id === property.owner._id || user.id === property.owner.id)) {
       toast.error('You cannot message your own listing');
       return;
     }
-
     if (!isAuthenticated) {
       toast.error('Please log in to send a message');
       navigate(`/auth?redirect=${encodeURIComponent(`/property/${id}`)}`);
       return;
     }
-
     try {
-      const response = await axios.post('/api/messages/start', {
-        propertyId: property._id,
-      });
+      const response = await axios.post('/api/messages/start', { propertyId: property._id });
       const conversationId = response.data.conversation?._id;
-      if (conversationId) {
-        navigate(`/messages?conversationId=${conversationId}`);
-      } else {
-        toast.error('Could not open conversation');
-      }
+      if (conversationId) navigate(`/messages?conversationId=${conversationId}`);
     } catch (error) {
-      const message = error.response?.data?.message || 'Failed to start conversation';
-      toast.error(message);
+      toast.error(error.response?.data?.message || 'Failed to start conversation');
     }
   };
 
   const handleContact = (type) => {
     if (!property?.owner) return;
-
     const { owner } = property;
-
-    const trackContact = (eventType) => {
-      axios
-        .post(`/api/houses/${property._id}/contact-event`, { type: eventType })
-        .catch(() => {
-          // Analytics errors should not affect user experience
-        });
-    };
+    const trackContact = (eventType) => axios.post(`/api/houses/${property._id}/contact-event`, { type: eventType });
 
     switch (type) {
       case 'phone':
@@ -158,38 +127,15 @@ const PropertyDetails = () => {
         break;
       case 'email':
         const subject = `Inquiry about ${property.title}`;
-        const body = `Hi ${owner.name},\n\nI'm interested in your property "${property.title}" listed on RentEase.\n\nProperty Details:\n- Location: ${property.location.address}, ${property.location.city}\n- Rent: ₹${property.rent}/month\n- Type: ${property.bhk} ${property.propertyType}\n\nCould you please provide more information?\n\nThank you!`;
+        const body = `Hi ${owner.name},\n\nI'm interested in your property "${property.title}" listed on RentEase.`;
         window.open(`mailto:${owner.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
         trackContact('email');
         break;
       case 'whatsapp':
-        const message = `Hi ${owner.name}, I'm interested in your property "${property.title}" listed on RentEase. Could you please provide more details?`;
+        const message = `Hi ${owner.name}, I'm interested in your property "${property.title}" on RentEase.`;
         window.open(`https://wa.me/91${owner.phone}?text=${encodeURIComponent(message)}`, '_blank');
         trackContact('whatsapp');
         break;
-    }
-    setShowContactModal(false);
-  };
-
-  const handleShare = async () => {
-    const url = window.location.href;
-    const title = property.title;
-    const text = `Check out this property: ${title}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, text, url });
-      } catch (error) {
-        console.log('Error sharing:', error);
-      }
-    } else {
-      // Fallback to copying URL
-      try {
-        await navigator.clipboard.writeText(url);
-        toast.success('Link copied to clipboard!');
-      } catch (error) {
-        toast.error('Failed to copy link');
-      }
     }
   };
 
@@ -206,520 +152,335 @@ const PropertyDetails = () => {
     }).format(amount);
   };
 
-  const isOwnerViewing =
-    !!(
-      property &&
-      property.owner &&
-      user &&
-      (user.id === property.owner._id || user.id === property.owner.id)
-    );
-
-  const canReview =
-    !!(property && property.owner && user && isAuthenticated && !isOwnerViewing);
+  const isOwnerViewing = !!(property && property.owner && user && (user.id === property.owner._id || user.id === property.owner.id));
+  const canReview = !!(property && property.owner && user && isAuthenticated && !isOwnerViewing);
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
-
-    if (!isAuthenticated) {
-      toast.error('Please log in to leave a review');
-      navigate(`/auth?redirect=${encodeURIComponent(`/property/${id}`)}`);
-      return;
-    }
-
-    if (!property) return;
-
-    if (isOwnerViewing) {
-      toast.error('Owners cannot review their own property');
-      return;
-    }
-
-    if (!userRating || userRating < 1 || userRating > 5) {
-      toast.error('Please select a rating between 1 and 5');
-      return;
-    }
+    if (!isAuthenticated) return navigate(`/auth?redirect=${encodeURIComponent(`/property/${id}`)}`);
+    if (!userRating) return toast.error('Please select a rating');
 
     try {
       setSubmittingReview(true);
-      const response = await axios.post(`/api/reviews/property/${id}`, {
-        rating: userRating,
-        comment: userComment,
-      });
-
-      const { averageRating: avg, totalReviews: total } = response.data || {};
-      setAverageRating(typeof avg === 'number' ? avg : null);
-      setTotalReviews(total || 0);
-
+      await axios.post(`/api/reviews/property/${id}`, { rating: userRating, comment: userComment });
       await fetchReviews();
       toast.success('Review saved');
     } catch (error) {
-      const message = error.response?.data?.message || 'Failed to save review';
-      toast.error(message);
+      toast.error('Failed to save review');
     } finally {
       setSubmittingReview(false);
     }
   };
 
-  if (loading) {
-    return <PageLoader text="Loading property details..." />;
-  }
-
-  if (!property) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Property not found</h2>
-          <button onClick={() => navigate('/browse')} className="btn-primary">
-            Browse Properties
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <PageLoader text="Curating details..." />;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Back Button */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      {/* Dynamic Background */}
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary-100/20 dark:bg-primary-900/10 blur-[150px] rounded-full pointer-events-none" />
+
+      {/* Breadcrumb & Quick Actions Header */}
+      <div className="sticky top-0 z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-10 h-16 flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex items-center space-x-2 text-slate-600 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400 transition-colors font-bold text-xs uppercase tracking-widest"
           >
-            <ArrowLeft className="h-5 w-5" />
-            <span>Back to listings</span>
+            <ArrowLeft className="h-4 w-4" />
+            <span>Listings Inventory</span>
           </button>
+
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success('Link copied');
+              }}
+              className="p-2.5 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-primary-600 rounded-xl transition-all"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={toggleFavorite}
+              className={`p-2.5 rounded-xl transition-all ${isFavorite
+                  ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                  : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-red-500'
+                }`}
+            >
+              <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Image Gallery */}
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-10 py-12 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+
+          {/* Main Content Area */}
+          <div className="lg:col-span-8 space-y-12">
+
+            {/* Premium Image Gallery */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="bg-white rounded-xl shadow-sm overflow-hidden"
+              className="relative rounded-[2.5rem] overflow-hidden shadow-luxury border border-white/20 dark:border-slate-800/50"
             >
               <Swiper
-                modules={[Navigation, Pagination, Autoplay]}
+                modules={[Navigation, Pagination, Autoplay, EffectFade]}
+                effect="fade"
                 navigation
-                pagination={{ clickable: true }}
-                autoplay={{ delay: 5000 }}
-                className="h-96 md:h-[500px]"
+                pagination={{ clickable: true, dynamicBullets: true }}
+                autoplay={{ delay: 6000 }}
+                className="h-[500px] md:h-[600px] group"
               >
                 {property.images.map((image, index) => (
                   <SwiperSlide key={index}>
                     <img
                       src={image}
-                      alt={`${property.title} - Image ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      alt={property.title}
+                      className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
                     />
                   </SwiperSlide>
                 ))}
               </Swiper>
+              <div className="absolute top-6 left-6 z-10">
+                <div className="px-4 py-1.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-full shadow-sm border border-white/20">
+                  <span className="text-[10px] font-bold text-primary-600 uppercase tracking-widest">{property.propertyType}</span>
+                </div>
+              </div>
             </motion.div>
 
-            {/* Property Info */}
+            {/* Property Overview */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="bg-white rounded-xl shadow-sm p-6"
+              transition={{ delay: 0.1 }}
             >
-              {/* Header */}
-              <div className="flex justify-between items-start mb-6">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                  <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-slate-100 mb-4 tracking-tight leading-tight">
                     {property.title}
                   </h1>
-                  <div className="flex items-center text-gray-600 mb-4">
-                    <MapPin className="h-5 w-5 mr-2" />
-                    <span>{property.location.address}, {property.location.city}, {property.location.state}</span>
-                  </div>
-                  <div className="flex flex-col space-y-1 text-sm text-gray-500">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <Eye className="h-4 w-4" />
-                        <span>{property.views} views</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="h-4 w-4" />
-                        <span>Listed {new Date(property.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    {averageRating !== null && (
-                      <div className="flex items-center space-x-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`h-4 w-4 ${
-                              averageRating >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                        <span className="ml-1 text-sm font-medium text-gray-900">
-                          {averageRating.toFixed(1)}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          ({totalReviews} review{totalReviews === 1 ? '' : 's'})
-                        </span>
-                      </div>
-                    )}
+                  <div className="flex items-center text-slate-600 dark:text-slate-400 font-medium">
+                    <MapPin className="h-5 w-5 mr-2 text-primary-500" />
+                    <span className="text-lg">{property.location.address}, {property.location.city}</span>
                   </div>
                 </div>
-                
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={toggleFavorite}
-                    className={`p-3 rounded-full transition-colors ${
-                      isFavorite 
-                        ? 'bg-red-500 text-white' 
-                        : 'bg-gray-100 text-gray-600 hover:bg-red-500 hover:text-white'
-                    }`}
-                  >
-                    <Heart className={`h-5 w-5 ${isFavorite ? 'fill-current' : ''}`} />
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    className="p-3 bg-gray-100 text-gray-600 hover:bg-primary-500 hover:text-white rounded-full transition-colors"
-                  >
-                    <Share2 className="h-5 w-5" />
-                  </button>
+              </div>
+
+              {/* Key Amenities Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+                <div className="glass-card !p-6 flex flex-col items-center text-center border-none ring-1 ring-slate-200/50 dark:ring-slate-800/50">
+                  <Bed className="h-6 w-6 text-primary-600 mb-3" />
+                  <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{property.bhk}</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Configuration</span>
+                </div>
+                <div className="glass-card !p-6 flex flex-col items-center text-center border-none ring-1 ring-slate-200/50 dark:ring-slate-800/50">
+                  <Square className="h-6 w-6 text-primary-600 mb-3" />
+                  <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{property.area} <span className="text-sm font-medium">sqft</span></span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Built Area</span>
+                </div>
+                <div className="glass-card !p-6 flex flex-col items-center text-center border-none ring-1 ring-slate-200/50 dark:ring-slate-800/50">
+                  <Zap className="h-6 w-6 text-primary-600 mb-3" />
+                  <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{property.furnishing}</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Setup</span>
+                </div>
+                <div className="glass-card !p-6 flex flex-col items-center text-center border-none ring-1 ring-slate-200/50 dark:ring-slate-800/50">
+                  <Shield className="h-6 w-6 text-primary-600 mb-3" />
+                  <span className="text-xl font-bold text-slate-900 dark:text-slate-100">Verified</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</span>
                 </div>
               </div>
 
-              {/* Property Details */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <Bed className="h-6 w-6 mx-auto mb-2 text-gray-600" />
-                  <div className="font-semibold text-gray-900">{property.bhk}</div>
-                  <div className="text-sm text-gray-600">Bedrooms</div>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <Square className="h-6 w-6 mx-auto mb-2 text-gray-600" />
-                  <div className="font-semibold text-gray-900">{property.area}</div>
-                  <div className="text-sm text-gray-600">Sq Ft</div>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="font-semibold text-gray-900">{property.furnishing}</div>
-                  <div className="text-sm text-gray-600">Furnishing</div>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="font-semibold text-gray-900">{property.propertyType}</div>
-                  <div className="text-sm text-gray-600">Type</div>
-                </div>
-              </div>
+              <div className="space-y-8">
+                <section>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-4 tracking-tight flex items-center">
+                    <Info className="h-5 w-5 mr-3 text-primary-500" />
+                    Property Description
+                  </h3>
+                  <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm leading-relaxed text-slate-700 dark:text-slate-300 font-medium">
+                    {property.description}
+                  </div>
+                </section>
 
-              {/* Description */}
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Description</h3>
-                <p className="text-gray-700 leading-relaxed">{property.description}</p>
-              </div>
-
-              {/* Amenities */}
-              {property.amenities && property.amenities.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">Amenities</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <section>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-4 tracking-tight flex items-center">
+                    <Zap className="h-5 w-5 mr-3 text-primary-500" />
+                    Modern Amenities
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {property.amenities.map((amenity) => (
-                      <div key={amenity} className="flex items-center space-x-2">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                        <span className="text-gray-700">{amenity}</span>
+                      <div key={amenity} className="flex items-center space-x-3 p-4 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{amenity}</span>
                       </div>
                     ))}
                   </div>
+                </section>
+              </div>
+            </motion.div>
+
+            {/* Reviews Section */}
+            <motion.section
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              className="pt-12 border-t border-slate-200 dark:border-slate-800"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Community Feedback</h3>
+                {averageRating && (
+                  <div className="flex items-center bg-accent-50 dark:bg-accent-900/20 px-4 py-2 rounded-2xl border border-accent-100 dark:border-accent-800/30">
+                    <Star className="h-4 w-4 text-accent-500 fill-current mr-2" />
+                    <span className="text-lg font-bold text-slate-900 dark:text-slate-100">{averageRating.toFixed(1)}</span>
+                    <span className="text-slate-400 mx-2">/</span>
+                    <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">{totalReviews} Reviews</span>
+                  </div>
+                )}
+              </div>
+
+              {reviewsLoading ? (
+                <div className="animate-pulse flex space-x-4"><div className="flex-1 space-y-4 py-1"><div className="h-4 bg-slate-200 rounded w-3/4"></div></div></div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                  {reviews.map((review) => (
+                    <div key={review._id} className="glass-card !p-6 border-none ring-1 ring-slate-200/50 dark:ring-slate-800/50">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 text-white flex items-center justify-center font-bold shadow-lg">
+                            {review.user?.name?.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-slate-100 text-sm">{review.user?.name}</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">{new Date(review.createdAt).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`h-3 w-3 ${i < review.rating ? 'text-accent-500 fill-current' : 'text-slate-200'}`} />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed italic">"{review.comment}"</p>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Preferences */}
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Preferences</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-gray-700">Tenant Type</span>
-                    <span className="font-medium text-gray-900">{property.preferences?.tenantType || 'Any'}</span>
+              {canReview && (
+                <form onSubmit={handleSubmitReview} className="bg-slate-100 dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800">
+                  <p className="font-bold text-slate-900 dark:text-slate-100 mb-6 uppercase tracking-widest text-xs">Share Your Experience</p>
+                  <div className="flex items-center space-x-2 mb-6">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button key={star} type="button" onClick={() => setUserRating(star)} className="focus:outline-none group">
+                        <Star className={`h-8 w-8 transition-all ${userRating >= star ? 'text-accent-500 fill-current' : 'text-slate-300 group-hover:text-accent-300'}`} />
+                      </button>
+                    ))}
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-gray-700">Pet Allowed</span>
-                    <span className="font-medium text-gray-900">
-                      {property.preferences?.petAllowed ? 'Yes' : 'No'}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                  <textarea
+                    rows={4}
+                    className="w-full bg-white dark:bg-slate-950 border-none rounded-2xl p-6 text-sm focus:ring-2 focus:ring-primary-500 mb-6 shadow-sm dark:text-white"
+                    placeholder="Tell us about the property and your experience..."
+                    value={userComment}
+                    onChange={(e) => setUserComment(e.target.value)}
+                  />
+                  <button type="submit" disabled={submittingReview || !userRating} className="btn-primary w-full !py-4 shadow-primary-500/20">
+                    {submittingReview ? 'Posting...' : 'Post Verification Review'}
+                  </button>
+                </form>
+              )}
+            </motion.section>
+          </div>
 
-              {/* Reviews */}
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Reviews</h3>
-                {reviewsLoading ? (
-                  <div className="text-sm text-gray-500">Loading reviews...</div>
-                ) : (
-                  <>
-                    {totalReviews === 0 ? (
-                      <div className="text-sm text-gray-500 mb-3">
-                        No reviews yet. Be the first to review this property.
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center space-x-2 mb-3">
-                          <div className="flex items-center">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`h-4 w-4 ${
-                                  averageRating >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-sm font-medium text-gray-900">
-                            {averageRating?.toFixed(1)} / 5
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            ({totalReviews} review{totalReviews === 1 ? '' : 's'})
-                          </span>
-                        </div>
-                        <div className="space-y-3 mb-4">
-                          {reviews.map((review) => (
-                            <div
-                              key={review._id}
-                              className="border border-gray-100 rounded-lg p-3 bg-gray-50"
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center space-x-2">
-                                  <div className="h-8 w-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold">
-                                    {review.user?.name?.charAt(0).toUpperCase() || 'U'}
-                                  </div>
-                                  <div>
-                                    <div className="text-sm font-semibold text-gray-900">
-                                      {review.user?.name || 'User'}
-                                    </div>
-                                    <div className="text-[11px] text-gray-500">
-                                      {new Date(review.createdAt).toLocaleDateString()}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star
-                                      key={star}
-                                      className={`h-3.5 w-3.5 ${
-                                        review.rating >= star
-                                          ? 'text-yellow-400 fill-yellow-400'
-                                          : 'text-gray-300'
-                                      }`}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                              {review.comment && (
-                                <p className="text-sm text-gray-700 mt-1">{review.comment}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
+          {/* Sidebar Area */}
+          <div className="lg:col-span-4">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="sticky top-24 space-y-6"
+            >
+              {/* Pricing Card */}
+              <div className="glass-panel !p-1 shadow-luxury rounded-[2rem] border-white/20">
+                <div className="bg-slate-950 rounded-[1.8rem] p-8 text-white relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600/20 blur-[60px] rounded-full" />
 
-                {canReview && (
-                  <form
-                    onSubmit={handleSubmitReview}
-                    className="mt-4 border-t border-gray-200 pt-4 space-y-3"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 mb-1">
-                        Rate this property
+                  <div className="mb-8">
+                    <p className="text-[10px] font-bold text-primary-400 uppercase tracking-widest mb-2">Monthly Rent</p>
+                    <div className="flex items-baseline space-x-2">
+                      <span className="text-4xl font-bold">{formatRent(property.rent)}</span>
+                      <span className="text-slate-500 text-sm font-medium">/mo</span>
+                    </div>
+                    {property.deposit > 0 && (
+                      <p className="text-sm text-slate-400 mt-2 flex items-center">
+                        <Shield className="h-4 w-4 mr-2 text-primary-500" />
+                        Deposit: {formatRent(property.deposit)}
                       </p>
-                      <div className="flex items-center space-x-2">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            className="focus:outline-none"
-                            onClick={() => setUserRating(star)}
-                          >
-                            <Star
-                              className={`h-5 w-5 ${
-                                userRating >= star ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
-                              }`}
-                            />
-                          </button>
-                        ))}
+                    )}
+                  </div>
+
+                  {/* Owner Brief */}
+                  <div className="bg-white/5 p-5 rounded-2xl border border-white/10 mb-8">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <div className="h-12 w-12 rounded-xl bg-primary-600 flex items-center justify-center font-bold text-xl shadow-lg border border-white/20">
+                        {property.owner.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-bold flex items-center">
+                          {property.owner.name}
+                          {property.owner.isVerified && <Verified className="h-4 w-4 ml-1.5 text-blue-400" />}
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Verified Owner</p>
                       </div>
                     </div>
-                    <div>
-                      <textarea
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
-                        rows={3}
-                        placeholder="Share your experience about this property (optional)"
-                        value={userComment}
-                        onChange={(e) => setUserComment(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={submittingReview}
-                        className="btn-primary text-sm px-4 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {submittingReview ? 'Saving...' : 'Submit review'}
+                  </div>
+
+                  <div className="space-y-4">
+                    <button onClick={handleMessageOwner} className="btn-primary w-full !py-4 flex items-center justify-center space-x-3 shadow-primary-500/30">
+                      <MessageCircle className="h-5 w-5" />
+                      <span>Start Chat in App</span>
+                    </button>
+                    <button onClick={() => handleContact('whatsapp')} className="btn-secondary w-full !bg-white/10 !text-white !border-white/10 !py-4 flex items-center justify-center space-x-3 hover:!bg-white hover:!text-slate-950">
+                      <MessageCircle className="h-5 w-5" />
+                      <span>Connect on WhatsApp</span>
+                    </button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button onClick={() => handleContact('phone')} className="py-3 border border-white/10 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-white/5 flex items-center justify-center space-x-2">
+                        <Phone className="h-4 w-4" />
+                        <span>Call</span>
+                      </button>
+                      <button onClick={() => handleContact('email')} className="py-3 border border-white/10 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-white/5 flex items-center justify-center space-x-2">
+                        <Mail className="h-4 w-4" />
+                        <span>Email</span>
                       </button>
                     </div>
-                  </form>
-                )}
+                  </div>
 
-                {!canReview && !isAuthenticated && (
-                  <p className="mt-3 text-xs text-gray-500">
-                    Please log in to leave a review.
-                  </p>
-                )}
-
-                {isOwnerViewing && (
-                  <p className="mt-3 text-xs text-gray-500">
-                    Owners cannot review their own property.
-                  </p>
-                )}
-              </div>
-            </motion.div>
-
-            {/* Map Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="bg-white rounded-xl shadow-sm p-6"
-            >
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Location</h3>
-              <div className="bg-gray-100 h-64 rounded-lg flex items-center justify-center">
-                <div className="text-center text-gray-500">
-                  <MapPin className="h-12 w-12 mx-auto mb-2" />
-                  <p>Map integration coming soon</p>
-                  <p className="text-sm mt-1">{property.location.address}, {property.location.city}</p>
+                  <p className="text-[10px] text-center text-slate-500 font-bold mt-6 uppercase tracking-widest">Direct Connect â€¢ No Brokerage</p>
                 </div>
               </div>
+
+              {/* Quick Specs Sidebar */}
+              <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 mb-6 uppercase tracking-widest text-[10px]">Property Registry</h4>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800/50">
+                    <span className="text-slate-500 font-medium text-sm">Status</span>
+                    <span className="text-green-500 font-bold text-sm">Active Inventory</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-800/50">
+                    <span className="text-slate-500 font-medium text-sm">Registry ID</span>
+                    <span className="text-slate-900 dark:text-slate-100 font-bold text-sm">#{property._id.slice(-6).toUpperCase()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3">
+                    <span className="text-slate-500 font-medium text-sm">Listing Date</span>
+                    <span className="text-slate-900 dark:text-slate-100 font-bold text-sm">{new Date(property.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+
             </motion.div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Price & Contact */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              className="bg-white rounded-xl shadow-sm p-6 sticky top-8"
-            >
-              <div className="text-center mb-6">
-                <div className="text-3xl font-bold text-gray-900 mb-1">
-                  {formatRent(property.rent)}
-                </div>
-                <div className="text-gray-600">per month</div>
-                {property.deposit > 0 && (
-                  <div className="text-sm text-gray-500 mt-1">
-                    Security Deposit: {formatRent(property.deposit)}
-                  </div>
-                )}
-              </div>
-
-              {/* Owner Info */}
-              <div className="border-t border-gray-200 pt-6 mb-6">
-                <h4 className="font-semibold text-gray-900 mb-3">Property Owner</h4>
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-primary-100 text-primary-600 p-3 rounded-full">
-                    <span className="font-semibold">
-                      {property.owner.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-900">{property.owner.name}</span>
-                      {property.owner.isVerified && (
-                        <Verified className="h-4 w-4 text-green-500" />
-                      )}
-                    </div>
-                    <div className="text-sm text-gray-600">Property Owner</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact Buttons */}
-              <div className="space-y-3">
-                <button
-                  onClick={handleMessageOwner}
-                  className="w-full btn-primary flex items-center justify-center space-x-2"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                  <span>Message in app</span>
-                </button>
-                <button
-                  onClick={() => handleContact('whatsapp')}
-                  className="w-full btn-outline flex items-center justify-center space-x-2"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                  <span>WhatsApp</span>
-                </button>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => handleContact('phone')}
-                    className="btn-outline flex items-center justify-center space-x-2"
-                  >
-                    <Phone className="h-4 w-4" />
-                    <span>Call</span>
-                  </button>
-                  <button
-                    onClick={() => handleContact('email')}
-                    className="btn-outline flex items-center justify-center space-x-2"
-                  >
-                    <Mail className="h-4 w-4" />
-                    <span>Email</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-4 text-xs text-gray-500 text-center">
-                By contacting, you agree to our terms of service
-              </div>
-            </motion.div>
-
-            {/* Quick Info */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="bg-white rounded-xl shadow-sm p-6"
-            >
-              <h4 className="font-semibold text-gray-900 mb-4">Quick Info</h4>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Property ID</span>
-                  <span className="font-medium text-gray-900">#{property._id.slice(-6).toUpperCase()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Availability</span>
-                  <span className={`font-medium ${
-                    property.availability === 'Available' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {property.availability}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Pincode</span>
-                  <span className="font-medium text-gray-900">{property.location.pincode}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Listed</span>
-                  <span className="font-medium text-gray-900">
-                    {new Date(property.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          </div>
         </div>
       </div>
     </div>

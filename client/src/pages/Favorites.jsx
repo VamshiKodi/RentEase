@@ -5,15 +5,27 @@ import { Heart, Grid } from 'lucide-react';
 import PropertyCard from '../components/PropertyCard';
 import { useAuth } from '../context/AuthContext';
 
-const FAVORITES_KEY = 'rentease_favorites';
+const FAVORITES_KEY = 'RentEase_favorites';
+const LEGACY_FAVORITES_KEY = 'rentease_favorites';
 
 const Favorites = () => {
   const { isAuthenticated, user, setFavorites } = useAuth();
   const [favoriteIds, setFavoriteIds] = useState(() => {
     if (typeof window === 'undefined') return [];
     try {
-      const stored = window.localStorage.getItem(FAVORITES_KEY);
-      return stored ? JSON.parse(stored) : [];
+      const storedNew = window.localStorage.getItem(FAVORITES_KEY);
+      if (storedNew) {
+        return JSON.parse(storedNew);
+      }
+
+      const legacy = window.localStorage.getItem(LEGACY_FAVORITES_KEY);
+      if (legacy) {
+        window.localStorage.setItem(FAVORITES_KEY, legacy);
+        window.localStorage.removeItem(LEGACY_FAVORITES_KEY);
+        return JSON.parse(legacy);
+      }
+
+      return [];
     } catch {
       return [];
     }
@@ -27,7 +39,16 @@ const Favorites = () => {
     } else if (!isAuthenticated) {
       if (typeof window !== 'undefined') {
         try {
-          const stored = window.localStorage.getItem(FAVORITES_KEY);
+          let stored = window.localStorage.getItem(FAVORITES_KEY);
+          if (!stored) {
+            const legacy = window.localStorage.getItem(LEGACY_FAVORITES_KEY);
+            if (legacy) {
+              stored = legacy;
+              window.localStorage.setItem(FAVORITES_KEY, legacy);
+              window.localStorage.removeItem(LEGACY_FAVORITES_KEY);
+            }
+          }
+
           setFavoriteIds(stored ? JSON.parse(stored) : []);
         } catch {
           setFavoriteIds([]);
@@ -119,16 +140,16 @@ const Favorites = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-[#faf6f1]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-1 flex items-center">
-              <Heart className="h-7 w-7 text-primary-600 mr-2" />
+            <h1 className="text-3xl font-extrabold text-[#3d3226] mb-1 flex items-center">
+              <Heart className="h-7 w-7 text-primary-500 mr-2" />
               My Favorites
             </h1>
-            <p className="text-gray-600">
+            <p className="text-[#5c4d3c]">
               Homes you have saved from Browse.
               {isAuthenticated
                 ? ' Favorites are linked to your account.'
@@ -138,21 +159,21 @@ const Favorites = () => {
         </div>
 
         {loading ? (
-          <p className="text-gray-600">Loading your favorite homes...</p>
+          <p className="text-[#5c4d3c]">Loading your favorite homes...</p>
         ) : properties.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center py-16"
+            className="text-center py-16 bg-white rounded-3xl border border-[#e8dfd3] shadow-sm"
           >
-            <div className="bg-gray-100 rounded-full p-8 w-32 h-32 mx-auto mb-6 flex items-center justify-center">
-              <Heart className="h-16 w-16 text-gray-400" />
+            <div className="bg-primary-50 rounded-full p-8 w-32 h-32 mx-auto mb-6 flex items-center justify-center ring-1 ring-primary-100">
+              <Heart className="h-16 w-16 text-primary-500" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-bold text-[#3d3226] mb-2">
               No favorites yet
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-[#5c4d3c] mb-6">
               Browse properties and tap the heart icon to save homes you like.
             </p>
             <a href="/browse" className="btn-primary inline-flex items-center">

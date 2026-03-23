@@ -41,7 +41,7 @@ router.get('/', [
     } = req.query;
 
     // Build filter object
-    const filter = { isActive: true, availability: 'Available' };
+    const filter = { isActive: true, availability: 'Available', approvalStatus: 'approved' };
 
     // Search functionality
     if (search) {
@@ -125,6 +125,7 @@ router.get('/nearby', [
     const houses = await House.find({
       isActive: true,
       availability: 'Available',
+      approvalStatus: 'approved',
       'location.coordinates': {
         $near: {
           $geometry: {
@@ -237,9 +238,26 @@ router.post('/', [auth, ownerOnly], [
       });
     }
 
+    // Sanitize location coordinates - remove invalid GeoJSON
+    const body = { ...req.body };
+    if (body.location?.coordinates) {
+      const coords = body.location.coordinates;
+      const hasValidCoords = Array.isArray(coords.coordinates) && 
+                             coords.coordinates.length === 2 &&
+                             typeof coords.coordinates[0] === 'number' &&
+                             typeof coords.coordinates[1] === 'number';
+      if (!hasValidCoords) {
+        delete body.location.coordinates;
+      }
+    }
+
     const houseData = {
-      ...req.body,
-      owner: req.user._id
+      ...body,
+      owner: req.user._id,
+      approvalStatus: 'pending',
+      approvedAt: null,
+      reviewedBy: null,
+      reviewNote: ''
     };
 
     const house = new House(houseData);
@@ -249,12 +267,20 @@ router.post('/', [auth, ownerOnly], [
       .populate('owner', 'name email phone isVerified');
 
     res.status(201).json({
-      message: 'House listing created successfully',
+      message: 'House listing created and submitted for admin approval',
       house: populatedHouse
     });
   } catch (error) {
-    console.error('Create house error:', error);
-    res.status(500).json({ message: 'Server error while creating house listing' });
+    console.error('Create house error detail:', {
+      message: error.message,
+      stack: error.stack,
+      body: req.body,
+      userId: req.user?._id
+    });
+    res.status(500).json({ 
+      message: 'Server error while creating house listing',
+      error: error.message 
+    });
   }
 });
 
@@ -288,14 +314,34 @@ router.put('/:id', [auth, ownerOnly], [
       return res.status(403).json({ message: 'Access denied. You can only update your own listings.' });
     }
 
+    // Sanitize location coordinates - remove invalid GeoJSON
+    const body = { ...req.body };
+    if (body.location?.coordinates) {
+      const coords = body.location.coordinates;
+      const hasValidCoords = Array.isArray(coords.coordinates) && 
+                             coords.coordinates.length === 2 &&
+                             typeof coords.coordinates[0] === 'number' &&
+                             typeof coords.coordinates[1] === 'number';
+      if (!hasValidCoords) {
+        delete body.location.coordinates;
+      }
+    }
+
     const updatedHouse = await House.findByIdAndUpdate(
       req.params.id,
-      { ...req.body, updatedAt: Date.now() },
+      {
+        ...body,
+        approvalStatus: 'pending',
+        approvedAt: null,
+        reviewedBy: null,
+        reviewNote: '',
+        updatedAt: Date.now()
+      },
       { new: true, runValidators: true }
     ).populate('owner', 'name email phone isVerified');
 
     res.json({
-      message: 'House listing updated successfully',
+      message: 'House listing updated and re-submitted for admin approval',
       house: updatedHouse
     });
   } catch (error) {

@@ -41,7 +41,7 @@ const Privacy = () => {
             <h2 className="text-base font-display font-bold text-slate-900 mb-1">Contacting us</h2>
             <p>
               For any privacy-related questions or requests, write to
-              <span className="font-mono"> privacy@rentease.com</span>.
+              <span className="font-mono"> privacy@homelink.com</span>.
             </p>
           </section>
         </div>

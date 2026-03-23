@@ -33,8 +33,7 @@ const houseSchema = new mongoose.Schema({
     coordinates: {
       type: {
         type: String,
-        enum: ['Point'],
-        default: 'Point'
+        enum: ['Point']
       },
       coordinates: {
         type: [Number]
@@ -59,6 +58,27 @@ const houseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  approvalStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+    index: true
+  },
+  approvedAt: {
+    type: Date,
+    default: null
+  },
+  reviewedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  reviewNote: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Review note cannot exceed 500 characters'],
+    default: ''
   },
   amenities: [{
     type: String,
@@ -152,6 +172,6 @@ houseSchema.index({
 });
 
 // Index for location-based queries
-houseSchema.index({ 'location.coordinates': '2dsphere' });
+houseSchema.index({ 'location.coordinates': '2dsphere' }, { sparse: true });
 
 module.exports = mongoose.model('House', houseSchema);

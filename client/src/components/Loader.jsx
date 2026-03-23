@@ -1,85 +1,64 @@
 import React from 'react';
-import { Home } from 'lucide-react';
+import { Home, ShieldCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
 
-const Loader = ({ size = 'medium', text = 'Loading...' }) => {
-  const sizeClasses = {
-    small: 'w-4 h-4',
-    medium: 'w-8 h-8',
-    large: 'w-12 h-12',
-  };
-
-  const textSizeClasses = {
-    small: 'text-sm',
-    medium: 'text-base',
-    large: 'text-lg',
-  };
-
+const Loader = ({ text = 'Loading...' }) => {
   return (
-    <div className="flex flex-col items-center justify-center p-8">
-      <div className="relative">
-        {/* Spinning circle */}
-        <div className={`${sizeClasses[size]} border-4 border-gray-200 border-t-primary-600 rounded-full animate-spin`}></div>
-        
-        {/* Icon in center */}
+    <div className="flex flex-col items-center justify-center p-12">
+      <div className="relative mb-6">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="w-16 h-16 border-2 border-primary-100 dark:border-primary-900/30 border-t-primary-600 dark:border-t-primary-500 rounded-full"
+        />
         <div className="absolute inset-0 flex items-center justify-center">
-          <Home className={`${sizeClasses[size]} text-primary-600 animate-pulse`} style={{ width: '50%', height: '50%' }} />
+          <Home className="w-6 h-6 text-primary-600 dark:text-primary-500 animate-pulse" />
         </div>
       </div>
-      
-      {text && (
-        <p className={`mt-4 text-gray-600 ${textSizeClasses[size]} animate-pulse`}>
-          {text}
-        </p>
-      )}
+      <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest animate-pulse">{text}</p>
     </div>
   );
 };
 
-// Full page loader
-export const PageLoader = ({ text = 'Loading RentEase...' }) => {
+export const PageLoader = ({ text = 'Initializing RentEase...' }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <div className="relative mb-8">
-          <div className="w-16 h-16 border-4 border-gray-200 border-t-primary-600 rounded-full animate-spin mx-auto"></div>
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary-100/30 dark:bg-primary-900/10 blur-[150px] rounded-full" />
+
+      <div className="text-center relative z-10">
+        <div className="relative mb-10 inline-block">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+            className="w-24 h-24 border-4 border-slate-100 dark:border-slate-800 border-t-primary-600 dark:border-t-primary-500 rounded-full"
+          />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Home className="w-8 h-8 text-primary-600 animate-bounce" />
+            <ShieldCheck className="w-10 h-10 text-primary-600 dark:text-primary-500" />
           </div>
         </div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">RentEase</h2>
-        <p className="text-gray-600 animate-pulse">{text}</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">RentEase <span className="text-primary-600">Premium</span></h2>
+        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.3em]">{text}</p>
       </div>
     </div>
   );
 };
 
-// Button loader
-export const ButtonLoader = ({ size = 'small' }) => {
-  const sizeClasses = {
-    small: 'w-4 h-4',
-    medium: 'w-5 h-5',
-  };
-
+export const ButtonLoader = () => {
   return (
-    <div className={`${sizeClasses[size]} border-2 border-white border-t-transparent rounded-full animate-spin`}></div>
+    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
   );
 };
 
-// Card loader skeleton
 export const CardLoader = () => {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
-      <div className="bg-gray-200 h-48 rounded-lg mb-4"></div>
-      <div className="space-y-3">
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-        <div className="flex space-x-4">
-          <div className="h-3 bg-gray-200 rounded w-16"></div>
-          <div className="h-3 bg-gray-200 rounded w-16"></div>
-        </div>
-        <div className="flex justify-between items-center pt-2">
-          <div className="h-6 bg-gray-200 rounded w-20"></div>
-          <div className="h-8 bg-gray-200 rounded w-16"></div>
+    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 p-2 shadow-sm animate-pulse">
+      <div className="bg-slate-100 dark:bg-slate-800 h-64 rounded-[2rem] mb-6"></div>
+      <div className="px-6 pb-6 space-y-4">
+        <div className="h-6 bg-slate-100 dark:bg-slate-800 rounded-lg w-3/4"></div>
+        <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-lg w-1/2"></div>
+        <div className="flex space-x-4 pt-4">
+          <div className="h-8 bg-slate-100 dark:bg-slate-800 rounded-xl w-24"></div>
+          <div className="h-8 bg-slate-100 dark:bg-slate-800 rounded-xl w-24"></div>
         </div>
       </div>
     </div>

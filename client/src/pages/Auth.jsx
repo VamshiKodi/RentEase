@@ -37,11 +37,11 @@ const Auth = () => {
   useEffect(() => {
     const mode = searchParams.get('mode');
     const type = searchParams.get('type');
-    
+
     if (mode === 'register') {
       setIsLogin(false);
     }
-    
+
     if (type && (type === 'owner' || type === 'renter')) {
       reset({ userType: type });
     }
@@ -49,7 +49,7 @@ const Auth = () => {
 
   const onSubmit = async (data) => {
     setLoading(true);
-    
+
     try {
       let result;
       if (isLogin) {
@@ -114,37 +114,36 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-blue-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="bg-white rounded-2xl shadow-xl p-8"
+          className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-8"
         >
           {/* Header */}
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center space-x-2 mb-6">
-              <div className="bg-primary-600 text-white p-2 rounded-lg">
+              <div className="bg-primary-600 text-white p-2 rounded-lg shadow-sm">
                 <Home className="h-6 w-6" />
               </div>
-              <span className="text-xl font-bold text-gray-900">RentEase</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-slate-100">RentEase</span>
             </Link>
-            
-            <h2 className="text-2xl font-bold text-gray-900">
+
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
               {showLocationStep
                 ? 'Set Your Location'
                 : isLogin
                   ? 'Welcome Back'
                   : 'Create Account'}
             </h2>
-            <p className="text-gray-600 mt-2">
+            <p className="text-gray-600 dark:text-slate-300 mt-2">
               {showLocationStep
                 ? 'Use your current location so we can show nearby homes right away.'
-                : isLogin 
-                  ? 'Sign in to your account to continue' 
-                  : 'Join RentEase and find your perfect home'
-              }
+                : isLogin
+                  ? 'Sign in to your account to continue'
+                  : 'Verified rentals. Real people. Create your RentEase account to get started.'}
             </p>
           </div>
 
@@ -153,8 +152,8 @@ const Auth = () => {
               {geoError && (
                 <p className="text-sm text-red-600">{geoError}</p>
               )}
-              <div className="bg-primary-50 border border-primary-100 rounded-lg p-4 text-left">
-                <p className="text-sm text-gray-700">
+              <div className="bg-primary-50 border border-primary-100 rounded-lg p-4 text-left dark:bg-slate-950 dark:border-slate-800">
+                <p className="text-sm text-gray-700 dark:text-slate-200">
                   Use your current location so we can instantly show rental homes near you.
                 </p>
               </div>
@@ -176,7 +175,7 @@ const Auth = () => {
               <button
                 type="button"
                 onClick={handleSkipLocation}
-                className="w-full text-sm text-gray-600 hover:text-gray-800 mt-2"
+                className="w-full text-sm text-gray-600 hover:text-gray-800 mt-2 dark:text-slate-400 dark:hover:text-slate-200"
               >
                 Skip for now
               </button>
@@ -189,15 +188,14 @@ const Auth = () => {
                   <>
                     {/* User Type Selection */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-3">
                         I am a
                       </label>
                       <div className="grid grid-cols-2 gap-3">
-                        <label className={`relative flex items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                          watchUserType === 'renter' 
-                            ? 'border-primary-500 bg-primary-50' 
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}>
+                        <label className={`relative flex items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${watchUserType === 'renter'
+                            ? 'border-primary-500 bg-primary-500 text-white'
+                            : 'border-gray-200 hover:border-gray-300 dark:border-slate-800 dark:hover:border-slate-700'
+                          }`}>
                           <input
                             type="radio"
                             value="renter"
@@ -205,17 +203,16 @@ const Auth = () => {
                             className="sr-only"
                           />
                           <div className="text-center">
-                            <User className="h-6 w-6 mx-auto mb-2 text-gray-600" />
-                            <span className="text-sm font-medium text-gray-900">Tenant</span>
-                            <p className="text-xs text-gray-500 mt-1">Looking for a home</p>
+                            <User className={`h-6 w-6 mx-auto mb-2 ${watchUserType === 'renter' ? 'text-white' : 'text-gray-600 dark:text-slate-300'}`} />
+                            <span className={`text-sm font-medium ${watchUserType === 'renter' ? 'text-white' : 'text-gray-900 dark:text-slate-100'}`}>Tenant</span>
+                            <p className={`text-xs mt-1 ${watchUserType === 'renter' ? 'text-blue-100' : 'text-gray-500 dark:text-slate-400'}`}>Looking for a home</p>
                           </div>
                         </label>
-                        
-                        <label className={`relative flex items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                          watchUserType === 'owner' 
-                            ? 'border-primary-500 bg-primary-50' 
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}>
+
+                        <label className={`relative flex items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${watchUserType === 'owner'
+                            ? 'border-primary-500 bg-primary-500 text-white'
+                            : 'border-gray-200 hover:border-gray-300 dark:border-slate-800 dark:hover:border-slate-700'
+                          }`}>
                           <input
                             type="radio"
                             value="owner"
@@ -223,9 +220,9 @@ const Auth = () => {
                             className="sr-only"
                           />
                           <div className="text-center">
-                            <Building className="h-6 w-6 mx-auto mb-2 text-gray-600" />
-                            <span className="text-sm font-medium text-gray-900">Owner</span>
-                            <p className="text-xs text-gray-500 mt-1">Have property to rent</p>
+                            <Building className={`h-6 w-6 mx-auto mb-2 ${watchUserType === 'owner' ? 'text-white' : 'text-gray-600 dark:text-slate-300'}`} />
+                            <span className={`text-sm font-medium ${watchUserType === 'owner' ? 'text-white' : 'text-gray-900 dark:text-slate-100'}`}>Owner</span>
+                            <p className={`text-xs mt-1 ${watchUserType === 'owner' ? 'text-blue-100' : 'text-gray-500 dark:text-slate-400'}`}>Have property to rent</p>
                           </div>
                         </label>
                       </div>
@@ -236,7 +233,7 @@ const Auth = () => {
 
                     {/* Name Field */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">
                         Full Name
                       </label>
                       <input
@@ -255,7 +252,7 @@ const Auth = () => {
 
                     {/* Phone Field */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">
                         Phone Number
                       </label>
                       <input
@@ -279,7 +276,7 @@ const Auth = () => {
 
                 {/* Email Field */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">
                     Email Address
                   </label>
                   <input
@@ -301,7 +298,7 @@ const Auth = () => {
 
                 {/* Password Field */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">
                     Password
                   </label>
                   <div className="relative">
@@ -317,7 +314,7 @@ const Auth = () => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -346,7 +343,7 @@ const Auth = () => {
 
               {/* Toggle Mode */}
               <div className="mt-6 text-center">
-                <p className="text-gray-600">
+                <p className="text-gray-600 dark:text-slate-300">
                   {isLogin ? "Don't have an account?" : 'Already have an account?'}
                   <button
                     onClick={toggleMode}
